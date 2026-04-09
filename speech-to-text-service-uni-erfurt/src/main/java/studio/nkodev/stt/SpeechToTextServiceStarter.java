@@ -41,7 +41,7 @@ public class SpeechToTextServiceStarter {
 
   private static final Logger logger = LoggerFactory.getLogger(SpeechToTextServiceStarter.class);
 
-  static void main(String[] args)
+  public static void main(String[] args)
       throws StorageException,
           IOException,
           InterruptedException,
