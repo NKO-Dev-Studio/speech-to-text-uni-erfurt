@@ -1,0 +1,42 @@
+audioFileStorage:
+  audioFileStorageLocation: "/path/to/working-directory/audio-files"
+
+  # optional
+  # path of an existing directory which is used to transfer audio files to this service
+  sharedStorageLocation: "/path/to/working-directory/audio-files-shared"
+
+resultStorage:
+  resultDirectoryLocation: "/path/to/working-directory/results"
+
+  # optional
+  # path of an existing directory on which result files are shared with other services
+  sharedStorageLocation: ""
+
+database:
+  sqlFilePath: "/path/to/working-directory/speech-to-text-db.sqlite"
+  maximumPoolSize: 4
+  minimumIdleSize: 1
+  connectionTimeoutMs: 30000
+
+engines:
+  localWhisper:
+    whisperExecutable: "/path/to/whisper-cli"
+    device:
+      type: "cpu"
+      numberOfThreads: 4 #set to 0 if you don't want to limit the number of threads per executed task
+
+taskScheduler:
+  numberOfParallelTasks: 4
+
+authentication:
+  type: "none"
+
+  # required when type is set to "certificate"
+  rootCertificatePath: "/path/to/root-certificate.pem"
+
+grpcServer:
+  port: 8080
+  serverCertificatePath: "/path/to/server-certificate.pem"
+  serverPrivateKeyPath: "/path/to/server-private-key.pem"
+  # optional path to a file containing the key password
+  serverPrivateKeyPasswordFile: "/path/to/server-private-key.password"

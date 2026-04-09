@@ -1,0 +1,86 @@
+import "google/protobuf/empty.proto";
+option java_package = "studio.nkodev.stt.proto";
+
+enum SpeechToTextEngineOutputFormat{
+  TXT = 0;
+  VTT = 1;
+  SRT = 2;
+  TSV = 3;
+  JSON = 4;
+}
+
+enum SpeechToTextTaskState{
+  WAITING_FOR_AUDIO = 0;
+  PENDING = 1;
+  RUNNING = 2;
+  DONE = 3;
+  FAILED = 4;
+}
+
+message EngineResultFile{
+  required SpeechToTextEngineOutputFormat outputFormat = 1;
+  repeated bytes content = 2;
+}
+
+message TaskRequest{
+  required string engineIdentifier = 1;
+  required string modelIdentifier = 2;
+  required SpeechToTextEngineOutputFormat outputFormat = 3;
+  optional string locale = 4;
+}
+
+message TaskDescription{
+  required int64 taskId = 1;
+}
+
+message TaskState{
+  required SpeechToTextTaskState taskState = 1;
+}
+
+message SharedStorageResult {
+  required string fileName = 1;
+}
+
+message SpeechToTextResultFileChunk {
+  required SpeechToTextEngineOutputFormat outputFormat = 1;
+  required int64 fileSize = 2;
+  required int32 chunkIndex = 3;
+  required bool lastChunk = 4;
+  required bytes content = 5;
+}
+
+message AudioFileChunk {
+  required int64 taskId = 1;
+  required int32 chunkIndex = 2;
+  required bool lastChunk = 3;
+  required bytes content = 4;
+}
+
+message SharedAudioFile {
+  required int64 taskId = 1;
+  required string fileName = 2;
+}
+
+
+message SpeechToTextEngines {
+  message SpeechToTextEngine {
+    required string engineIdentifier = 1;
+    required string engineName = 2;
+    repeated string modelIdentifiers = 3;
+    repeated SpeechToTextEngineOutputFormat allowedOutputFormats = 4;
+  }
+
+  repeated SpeechToTextEngine speechToTextEngines = 1;
+}
+
+
+service SpeechToText{
+  rpc StartSpeechToTextTask(TaskRequest) returns (TaskDescription);
+  rpc ProvideAudioFileStream(stream AudioFileChunk) returns (google.protobuf.Empty);
+  rpc ProvideSharedAudioFile(SharedAudioFile) returns (google.protobuf.Empty);
+  rpc GetTaskStatus(TaskDescription) returns (TaskState);
+  rpc WriteTaskResultsIntoSharedStorage(TaskDescription) returns (SharedStorageResult);
+  rpc GetTaskResultsAsStream(TaskDescription) returns (stream SpeechToTextResultFileChunk);
+  rpc GetEngines(google.protobuf.Empty) returns (SpeechToTextEngines);
+
+}

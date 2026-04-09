@@ -1,2 +1,24 @@
-# speech-to-text_uni-erfurt
-This repository contains java components which handles a task based execution of speech to text tasks. It consists of a backend service, handles the task execution and management, a java client library which can be used to integrate speech to text functionalities into an existing component and a grpc protocol
+# speech-to-text-uni-erfurt
+
+This project includes modules that enable the execution of asynchronous speech-to-text tasks.
+The goal of the implementation was to enable easy integration into existing services and to allow the expansion of the
+used engines as needed
+
+## Modules
+
+The project consists of the following modules:
+
+* **[speech-to-text-service-uni-erfurt](speech-to-text-service-uni-erfurt)**: Backend service handling the management
+  and execution of speech-to-text-tasks.
+* **[speech-to-text-service-client-uni-erfurt](speech-to-text-service-client-uni-erfurt)**:  Client library which can be
+  integrated to existing java projects to trigger tasks, receiving their current state and consuming their results.
+* **[speech-to-text-service-protocol-uni-erfurt](speech-to-text-service-client-uni-erfurt)**:  Definition of the gRPC
+  interface used for the communication between client and service
+
+## Interfaces
+
+gRPC is currently used as network interface between client and service. The components are designed to allow definition
+of alternative interfaces in the future.
+
+A detailed documentation of the gRPC interface can be found inside
+the [readme.md](speech-to-text-service-protocol-uni-erfurt/readme.md) of the speech-to-text-service-protocol-uni-erfurt.
