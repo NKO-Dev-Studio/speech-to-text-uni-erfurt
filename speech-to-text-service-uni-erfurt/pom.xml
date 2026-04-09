@@ -42,7 +42,12 @@
     <!-- NKO Dev Studio dependencies -->
     <dependency>
       <groupId>studio.nko-dev</groupId>
-      <artifactId>speech-to-text-service-protocol</artifactId>
+      <artifactId>speech-to-text-service-protocol-uni-erfurt</artifactId>
+    </dependency>
+    <!-- gRPC dependencies -->
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-netty</artifactId>
     </dependency>
     <!-- Logging dependencies -->
     <dependency>
