@@ -192,5 +192,6 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: ${{ steps.tags.outputs.value }}
+          platforms: linux/amd64,linux/arm64
           build-args: |
             SPEECH_TO_TEXT_SERVICE_VERSION=${{ steps.image-version.outputs.value }}
