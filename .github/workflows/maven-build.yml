@@ -1,0 +1,36 @@
+name: Maven build pipeline
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [ "**" ]
+  create:
+jobs:
+  build-main:
+    if: github.ref == 'refs/heads/main' || github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: maven
+      - name: Build with Maven
+        run: mvn deploy -P deploy-maven-central
+      - name: Update dependency graph
+        uses: advanced-security/maven-dependency-submission-action@v5
+  test-others:
+    if: github.ref != 'refs/heads/master' && github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: maven
+      - name: Run Maven tests
+        run: mvn test
