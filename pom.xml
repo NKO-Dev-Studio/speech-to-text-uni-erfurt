@@ -10,7 +10,7 @@
   <packaging>pom</packaging>
 
   <scm>
-    <developerConnection>git@github.com:NKO-Dev-Studio/speech-to-text-uni-erfurt.git</developerConnection>
+    <developerConnection>scm:git:git@github.com:NKO-Dev-Studio/speech-to-text-uni-erfurt.git</developerConnection>
     <connection>git@github.com:NKO-Dev-Studio/speech-to-text-uni-erfurt.git</connection>
   </scm>
 
