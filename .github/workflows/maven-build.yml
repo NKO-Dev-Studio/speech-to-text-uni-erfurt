@@ -1,4 +1,4 @@
-name: Maven build pipeline
+name: Maven build
 on:
   push:
     branches: ["**"]
@@ -32,6 +32,13 @@ jobs:
           CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           GPG_KEYNAME: ${{ secrets.GPG_KEYNAME }}
+      - name: Upload service distribution
+        uses: actions/upload-artifact@v4
+        with:
+          name: speech-to-text-service-distribution
+          path: speech-to-text-service-uni-erfurt/target/*-distribution.zip
+          if-no-files-found: error
+          retention-days: 7
       - name: Update dependency graph
         if: github.ref == 'refs/heads/main'
         uses: advanced-security/maven-dependency-submission-action@v5
