@@ -1,52 +1,196 @@
-name: Docker image
+name: Docker image build
 on:
-  workflow_run:
-    workflows:
-      - Maven build
-    types:
-      - completed
+  workflow_dispatch:
+  schedule:
+    - cron: 0 2 * * 1
+
+env:
+  # Supported entries:
+  # - branch:<branch-name>
+  # - tag:<tag-name>
+  # - refs/heads/<branch-name>
+  # - refs/tags/<tag-name>
+  DOCKER_IMAGE_BUILD_REFS: |
+    branch:main
+
 jobs:
-  resolve-distribution:
-    if: github.event.workflow_run.conclusion == 'success'
+  prepare:
     runs-on: ubuntu-latest
-    permissions:
-      actions: read
     outputs:
-      available: ${{ steps.check-artifact.outputs.available }}
+      has-builds: ${{ steps.matrix.outputs.has-builds }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
-      - name: Check release distribution artifact
-        id: check-artifact
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const artifactName = 'speech-to-text-service-distribution';
-            const { owner, repo } = context.repo;
-            const run_id = context.payload.workflow_run.id;
-            const { data } = await github.rest.actions.listWorkflowRunArtifacts({
-              owner,
-              repo,
-              run_id,
-            });
-            const artifact = data.artifacts.find((entry) => entry.name === artifactName && !entry.expired);
-            core.setOutput('available', artifact ? 'true' : 'false');
-  create-image:
-    needs: resolve-distribution
-    if: needs.resolve-distribution.outputs.available == 'true'
+      - name: Resolve build matrix
+        id: matrix
+        env:
+          DOCKER_IMAGE_BUILD_REFS: ${{ env.DOCKER_IMAGE_BUILD_REFS }}
+        run: |
+          set -euo pipefail
+
+          mapfile -t raw_entries < <(printf '%s\n' "$DOCKER_IMAGE_BUILD_REFS" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e '/^$/d')
+
+          if [ ${#raw_entries[@]} -eq 0 ]; then
+            echo 'has-builds=false' >> "$GITHUB_OUTPUT"
+            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          entries=()
+          tag_names=()
+
+          for entry in "${raw_entries[@]}"; do
+            case "$entry" in
+              branch:main)
+                entries+=("branch|main|refs/heads/main")
+                ;;
+              tag:*)
+                tag_name="${entry#tag:}"
+                if [ -z "$tag_name" ]; then
+                  echo "::error::Invalid tag entry '$entry'."
+                  exit 1
+                fi
+                entries+=("tag|$tag_name|refs/tags/$tag_name")
+                tag_names+=("$tag_name")
+                ;;
+              refs/heads/main)
+                entries+=("branch|main|refs/heads/main")
+                ;;
+              refs/tags/*)
+                tag_name="${entry#refs/tags/}"
+                if [ -z "$tag_name" ]; then
+                  echo "::error::Invalid tag ref '$entry'."
+                  exit 1
+                fi
+                entries+=("tag|$tag_name|$entry")
+                tag_names+=("$tag_name")
+                ;;
+              branch:*|refs/heads/*)
+                echo "::error::Only the main branch is supported because the image tag mapping is defined for main -> latest-snapshot."
+                exit 1
+                ;;
+              *)
+                echo "::error::Unsupported ref entry '$entry'. Use branch:main, tag:<tag>, refs/heads/main, or refs/tags/<tag>."
+                exit 1
+                ;;
+            esac
+          done
+
+          latest_tag=''
+          if [ ${#tag_names[@]} -gt 0 ]; then
+            latest_tag="$(printf '%s\n' "${tag_names[@]}" | sort -V | tail -n 1)"
+          fi
+
+          matrix_entries=()
+          for entry in "${entries[@]}"; do
+            IFS='|' read -r ref_type ref_name ref <<< "$entry"
+
+            image_tags=()
+            if [ "$ref_type" = 'branch' ]; then
+              image_tags+=('latest-snapshot')
+            else
+              image_tags+=("$ref_name")
+              if [ "$ref_name" = "$latest_tag" ]; then
+                image_tags+=('latest')
+              fi
+            fi
+
+            image_tags_json="$(printf '%s\n' "${image_tags[@]}" | jq -R . | jq -cs .)"
+            matrix_entries+=("$(jq -nc \
+              --arg ref "$ref" \
+              --arg ref_name "$ref_name" \
+              --arg ref_type "$ref_type" \
+              --argjson image_tags "$image_tags_json" \
+              '{ref: $ref, ref_name: $ref_name, ref_type: $ref_type, image_tags: $image_tags}')")
+          done
+
+          matrix_json="$(printf '%s\n' "${matrix_entries[@]}" | jq -cs '{include: .}')"
+
+          echo 'has-builds=true' >> "$GITHUB_OUTPUT"
+          echo "matrix=$matrix_json" >> "$GITHUB_OUTPUT"
+
+  build-and-publish:
+    needs: prepare
+    if: needs.prepare.outputs.has-builds == 'true'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
     permissions:
-      actions: read
       contents: read
+      packages: write
     steps:
-      - name: Checkout release
+      - name: Checkout source ref
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-      - name: Download service distribution
-        uses: actions/download-artifact@v5
+          ref: ${{ matrix.ref }}
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
         with:
-          name: speech-to-text-service-distribution
-          github-token: ${{ github.token }}
-          run-id: ${{ github.event.workflow_run.id }}
-          path: dist
-      - name: Unpack service distribution
-        run: unzip -q dist/*.zip -d dist/app
+          java-version: '25'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build service distribution
+        run: mvn -B -pl speech-to-text-service-uni-erfurt -am package -DskipTests
+
+      - name: Resolve application version
+        id: app-version
+        run: |
+          set -euo pipefail
+          app_version="$(grep -m 1 '<version>' pom.xml | sed -E 's|.*<version>([^<]+)</version>.*|\1|')"
+          if [ -z "$app_version" ]; then
+            echo "::error::Unable to resolve the project version from pom.xml."
+            exit 1
+          fi
+          echo "value=$app_version" >> "$GITHUB_OUTPUT"
+
+      - name: Derive image repository
+        id: image
+        run: |
+          set -euo pipefail
+          echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare image tags
+        id: tags
+        env:
+          IMAGE_NAME: ${{ steps.image.outputs.name }}
+          IMAGE_TAGS_JSON: ${{ toJson(matrix.image_tags) }}
+        run: |
+          set -euo pipefail
+          jq -r --arg image "$IMAGE_NAME" '.[] | "\($image):\(.)"' <<< "$IMAGE_TAGS_JSON" > image-tags.txt
+          {
+            echo 'value<<EOF'
+            cat image-tags.txt
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Resolve image version label
+        id: image-version
+        run: |
+          set -euo pipefail
+          if [ '${{ matrix.ref_type }}' = 'tag' ]; then
+            echo "value=${{ matrix.ref_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${{ steps.app-version.outputs.value }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.tags.outputs.value }}
+          build-args: |
+            SPEECH_TO_TEXT_SERVICE_VERSION=${{ steps.image-version.outputs.value }}
