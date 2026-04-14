@@ -1,4 +1,5 @@
 [![Maven build pipeline](https://github.com/NKO-Dev-Studio/speech-to-text-uni-erfurt/actions/workflows/maven-build.yml/badge.svg)](https://github.com/NKO-Dev-Studio/speech-to-text-uni-erfurt/actions/workflows/maven-build.yml)
+[![Docker image build](https://github.com/NKO-Dev-Studio/speech-to-text-uni-erfurt/actions/workflows/docker-image-build.yml/badge.svg)](https://github.com/NKO-Dev-Studio/speech-to-text-uni-erfurt/actions/workflows/docker-image-build.yml)
 # speech-to-text-uni-erfurt
 
 This project includes modules that enable the execution of asynchronous speech-to-text tasks.
