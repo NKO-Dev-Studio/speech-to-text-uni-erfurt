@@ -117,7 +117,6 @@ public class SpeechToTextServiceClient implements AutoCloseable {
    *
    * @param taskId which results will be persisted
    * @param resultPath to which the result file will be written in
-   * @return the persisted result file path
    */
   public void saveResultsOfTask(long taskId, Path resultPath) {
     verifyClientNotClosed();

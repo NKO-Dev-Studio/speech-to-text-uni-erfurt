@@ -13,7 +13,33 @@
 
   <artifactId>speech-to-text-service-uni-erfurt</artifactId>
   <name>speech-to-text-service-uni-erfurt</name>
+  <description>Backend speech-to-text service for managing transcription tasks and exposing them via gRPC.</description>
+  <url>https://github.com/NKO-Dev-Studio/speech-to-text-uni-erfurt</url>
   <packaging>jar</packaging>
+
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <id>nko-dev-studio</id>
+      <name>Nico Kotlenga</name>
+      <organization>NKO Dev Studio - Nico Kotlenga</organization>
+      <organizationUrl>https://nko-dev.studio</organizationUrl>
+      <url>https://github.com/NKO-Dev-Studio</url>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:https://github.com/NKO-Dev-Studio/speech-to-text-uni-erfurt.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/NKO-Dev-Studio/speech-to-text-uni-erfurt.git</developerConnection>
+    <url>https://github.com/NKO-Dev-Studio/speech-to-text-uni-erfurt</url>
+  </scm>
 
   <build>
     <plugins>
