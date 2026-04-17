@@ -5,7 +5,7 @@
   <parent>
     <groupId>studio.nko-dev</groupId>
     <artifactId>speech-to-text-uni-erfurt</artifactId>
-    <version>1.0.2-SNAPSHOT</version>
+    <version>1.0.1-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
