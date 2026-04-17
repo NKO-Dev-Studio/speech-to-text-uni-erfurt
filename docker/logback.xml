@@ -1,0 +1,14 @@
+<configuration>
+  <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%date{ISO8601} [%level] [%thread] %kvp{NONE} %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <root level="info">
+    <appender-ref ref="console" />
+  </root>
+
+  <logger name="studio.nkodev" level="info">
+  </logger>
+</configuration>
