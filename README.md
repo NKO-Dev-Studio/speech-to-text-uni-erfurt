@@ -97,7 +97,6 @@ the configuration file at `SPEECH_TO_TEXT_CONFIGURATION_FILE_LOCATION` from the 
 
 * `SPEECH_TO_TEXT_TASK_SCHEDULER_NUMBER_OF_PARALLEL_TASKS`: Number of transcription jobs that may run concurrently.
   Default: `1`
-* `SPEECH_TO_TEXT_GRPC_SERVER_PORT`: gRPC port exposed by the service. Default: `8080`
 * `SPEECH_TO_TEXT_GRPC_SERVER_CERTIFICATE_PATH`: Path to the server TLS certificate file. Required.
 * `SPEECH_TO_TEXT_GRPC_SERVER_PRIVATE_KEY_PATH`: Path to the server TLS private key file. Required.
 * `SPEECH_TO_TEXT_GRPC_SERVER_PRIVATE_KEY_PASSWORD_FILE`: Optional path to a file containing the password for an
