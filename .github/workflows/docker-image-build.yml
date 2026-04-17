@@ -11,8 +11,8 @@ env:
   # - refs/heads/<branch-name>
   # - refs/tags/<tag-name>
   DOCKER_IMAGE_BUILD_REFS: |
-    - branch:main
-    - tag:1.0.1
+    branch:main
+    tag:1.0.1
 
 jobs:
   prepare:
