@@ -2,8 +2,12 @@ package studio.nkodev.stt.config;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import org.yaml.snakeyaml.Yaml;
 import studio.nkodev.stt.config.SpeechToTextServiceConfiguration.LocalWhisperConfigurationSection;
@@ -40,15 +44,19 @@ public final class SpeechToTextServiceConfigurationLoader {
 
   private static SpeechToTextServiceConfiguration.EngineConfigurationSection
       readEngineConfigurationSection(Map<?, ?> configurationMap) {
-    Map<?, ?> localWhisperConfigurationMap = requireMap(configurationMap, "localWhisper");
+    Map<?, ?> localWhisperConfigurationMap = optionalMap(configurationMap, "localWhisper");
     LocalWhisperConfigurationSection localWhisperConfigurationSection = null;
     if (localWhisperConfigurationMap != null) {
       localWhisperConfigurationSection =
           readLocalWhisperConfigurationSection(localWhisperConfigurationMap);
     }
 
+    Collection<SpeechToTextServiceConfiguration.OpenAIApiEngineConfigurationSection>
+        openAIApiEngineConfigurations =
+            readOpenAIApiEngineConfigurationSections(configurationMap, "openAIApiEngines");
+
     return new SpeechToTextServiceConfiguration.EngineConfigurationSection(
-        localWhisperConfigurationSection);
+        localWhisperConfigurationSection, openAIApiEngineConfigurations);
   }
 
   private static SpeechToTextServiceConfiguration.AudioFileStorageConfigurationSection
@@ -125,6 +133,46 @@ public final class SpeechToTextServiceConfigurationLoader {
       throw new IllegalArgumentException("Missing configuration section: " + key);
     }
     return valueMap;
+  }
+
+  private static Map<?, ?> optionalMap(Map<?, ?> configurationMap, String key) {
+    Object value = configurationMap.get(key);
+    if (value == null) {
+      return null;
+    }
+    if (!(value instanceof Map<?, ?> valueMap)) {
+      throw new IllegalArgumentException("Invalid configuration section: " + key);
+    }
+    return valueMap;
+  }
+
+  private static Collection<SpeechToTextServiceConfiguration.OpenAIApiEngineConfigurationSection>
+      readOpenAIApiEngineConfigurationSections(Map<?, ?> configurationMap, String key) {
+    Object value = configurationMap.get(key);
+    if (value == null) {
+      return List.of();
+    }
+    if (!(value instanceof List<?> listValue)) {
+      throw new IllegalArgumentException("Invalid configuration section: " + key);
+    }
+
+    List<SpeechToTextServiceConfiguration.OpenAIApiEngineConfigurationSection> configurations =
+        new ArrayList<>();
+    for (Object currentValue : listValue) {
+      if (!(currentValue instanceof Map<?, ?> entryMap)) {
+        throw new IllegalArgumentException("Invalid configuration value in section: " + key);
+      }
+      configurations.add(readOpenAIApiEngineConfigurationSection(entryMap));
+    }
+    return configurations;
+  }
+
+  private static SpeechToTextServiceConfiguration.OpenAIApiEngineConfigurationSection
+      readOpenAIApiEngineConfigurationSection(Map<?, ?> configurationMap) {
+    return new SpeechToTextServiceConfiguration.OpenAIApiEngineConfigurationSection(
+        readString(configurationMap, "identifier"),
+        URI.create(readString(configurationMap, "apiBaseUrl")),
+        readString(configurationMap, "apiToken"));
   }
 
   private static Path readPath(Map<?, ?> configurationMap, String key) {

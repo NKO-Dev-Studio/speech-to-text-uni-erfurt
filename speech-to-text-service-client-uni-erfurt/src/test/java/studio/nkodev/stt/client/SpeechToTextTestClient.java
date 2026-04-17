@@ -32,13 +32,13 @@ public class SpeechToTextTestClient {
                     "/Users/nicokotlenga/Projects/nko-dev-studio/speech-to-text/speech-to-text-service/certificates/dev/root-ca.cert.pem"),
                 SpeechToTextTransferConfigurationFactory.streaming(),
                 SpeechToTextTransferConfigurationFactory.streaming())
-            .authenticationConfiguration(
+           /* .authenticationConfiguration(
                 SpeechToTextServiceClientAuthenticationConfiguration.builder(
                         Path.of(
                             "/Users/nicokotlenga/Projects/nko-dev-studio/speech-to-text/speech-to-text-service/certificates/dev/speech-to-text-client.cert.pem"),
                         Path.of(
                             "/Users/nicokotlenga/Projects/nko-dev-studio/speech-to-text/speech-to-text-service/certificates/dev/speech-to-text-client.key.pem"))
-                    .build())
+                    .build()) */
             .build();
 
     try (SpeechToTextServiceClient client = new SpeechToTextServiceClient(clientConfiguration); ) {

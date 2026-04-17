@@ -19,7 +19,6 @@ import studio.nkodev.stt.api.SpeechToTextTaskConfiguration;
 import studio.nkodev.stt.api.SpeechToTextTaskState;
 import studio.nkodev.stt.db.DbAccess;
 import studio.nkodev.stt.engine.api.SpeechToTextEngineOutputFormat;
-import studio.nkodev.stt.engine.api.SpeechToTextEngineType;
 import studio.nkodev.stt.storage.SpeechToTextTaskStorage;
 import studio.nkodev.stt.storage.exception.NotFoundStorageException;
 import studio.nkodev.stt.storage.exception.StorageException;
@@ -230,8 +229,7 @@ public class SpeechToTextTaskDbStorage implements SpeechToTextTaskStorage {
 
     while (resultSet.next()) {
       long id = resultSet.getLong("id");
-      SpeechToTextEngineType engineType =
-          SpeechToTextEngineType.valueOf(resultSet.getString("engine_type"));
+      String engineIdentifier = resultSet.getString("engine_type");
       String modelIdentifier = resultSet.getString("model_identifier");
       SpeechToTextEngineOutputFormat outputFormat =
           SpeechToTextEngineOutputFormat.valueOf(resultSet.getString("output_format"));
@@ -242,7 +240,8 @@ public class SpeechToTextTaskDbStorage implements SpeechToTextTaskStorage {
       Instant changedAt = resultSet.wasNull() ? null : Instant.ofEpochMilli(changedAtEpochMillis);
 
       SpeechToTextTaskConfiguration configuration =
-          new SpeechToTextTaskConfiguration(engineType, locale, modelIdentifier, outputFormat);
+          new SpeechToTextTaskConfiguration(
+              engineIdentifier, locale, modelIdentifier, outputFormat);
       SpeechToTextTask speechToTextTask =
           new SpeechToTextTask(id, configuration, createdAt, changedAt);
       speechToTextTasks.add(speechToTextTask);
@@ -316,7 +315,7 @@ public class SpeechToTextTaskDbStorage implements SpeechToTextTaskStorage {
             """,
             PreparedStatement.RETURN_GENERATED_KEYS)) {
       statement.setString(1, SpeechToTextTaskState.WAITING_FOR_AUDIO.name());
-      statement.setString(2, taskConfiguration.engineType().name());
+      statement.setString(2, taskConfiguration.engineIdentifier());
       statement.setString(3, taskConfiguration.modelIdentifier());
       statement.setString(4, taskConfiguration.outputFormat().name());
       statement.setString(

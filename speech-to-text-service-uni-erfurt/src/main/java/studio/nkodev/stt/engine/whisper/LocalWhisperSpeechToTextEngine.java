@@ -119,6 +119,16 @@ public class LocalWhisperSpeechToTextEngine implements SpeechToTextEngine {
   }
 
   @Override
+  public String getIdentifier() {
+    return SpeechToTextEngineType.WHISPER_LOCAL.name();
+  }
+
+  @Override
+  public String getEngineName() {
+    return SpeechToTextEngineType.WHISPER_LOCAL.getEngineTypeName();
+  }
+
+  @Override
   public SpeechToTextEngineType getSpeechToTextEngineType() {
     return SpeechToTextEngineType.WHISPER_LOCAL;
   }

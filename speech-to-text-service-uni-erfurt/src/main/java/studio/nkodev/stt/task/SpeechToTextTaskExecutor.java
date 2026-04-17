@@ -45,6 +45,7 @@ public class SpeechToTextTaskExecutor implements Runnable {
 
     SpeechToTextEngineExecutionConfiguration engineConfiguration =
         new SpeechToTextEngineExecutionConfiguration(
+            speechToTextTask.getId(),
             speechToTextTask.getConfiguration().modelIdentifier(),
             audioFilePath,
             resultDirectory,

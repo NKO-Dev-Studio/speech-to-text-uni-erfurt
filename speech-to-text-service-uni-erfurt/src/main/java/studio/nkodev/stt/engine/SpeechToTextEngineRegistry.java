@@ -1,7 +1,7 @@
 package studio.nkodev.stt.engine;
 
 import java.util.Collection;
-import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import studio.nkodev.stt.engine.api.SpeechToTextEngine;
 import studio.nkodev.stt.engine.api.SpeechToTextEngineType;
@@ -15,24 +15,32 @@ import studio.nkodev.stt.engine.exception.SpeechToTextEngineException;
  */
 public class SpeechToTextEngineRegistry {
 
-  private final Map<SpeechToTextEngineType, SpeechToTextEngine> enginesByEngineType =
-      new EnumMap<>(SpeechToTextEngineType.class);
+  private final Map<String, SpeechToTextEngine> enginesByIdentifier = new LinkedHashMap<>();
 
   public void registerSpeechToTextEngine(SpeechToTextEngine speechToTextEngine) {
-    enginesByEngineType.put(speechToTextEngine.getSpeechToTextEngineType(), speechToTextEngine);
+    String engineIdentifier = speechToTextEngine.getIdentifier();
+    if (enginesByIdentifier.containsKey(engineIdentifier)) {
+      throw new IllegalArgumentException(
+          "Engine identifier " + engineIdentifier + " already registered");
+    }
+    enginesByIdentifier.put(engineIdentifier, speechToTextEngine);
   }
 
   public Collection<SpeechToTextEngine> getEngines() {
-    return enginesByEngineType.values();
+    return enginesByIdentifier.values();
+  }
+
+  public SpeechToTextEngine getEngineByIdentifier(String engineIdentifier)
+      throws SpeechToTextEngineException {
+    if (!enginesByIdentifier.containsKey(engineIdentifier)) {
+      throw new SpeechToTextEngineException("Engine identifier " + engineIdentifier + " not registered");
+    }
+
+    return enginesByIdentifier.get(engineIdentifier);
   }
 
   public SpeechToTextEngine getEngineByEngineType(SpeechToTextEngineType speechToTextEngineType)
       throws SpeechToTextEngineException {
-    if (!enginesByEngineType.containsKey(speechToTextEngineType)) {
-      throw new SpeechToTextEngineException(
-          "Engine type " + speechToTextEngineType + " not registered");
-    }
-
-    return enginesByEngineType.get(speechToTextEngineType);
+    return getEngineByIdentifier(speechToTextEngineType.name());
   }
 }

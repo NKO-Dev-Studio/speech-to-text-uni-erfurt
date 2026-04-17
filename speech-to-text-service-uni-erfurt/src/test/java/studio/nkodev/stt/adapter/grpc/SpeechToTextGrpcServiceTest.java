@@ -80,7 +80,8 @@ public class SpeechToTextGrpcServiceTest {
         .createSpeechToTextTask(
             argThat(
                 configuration ->
-                    configuration.engineType() == SpeechToTextEngineType.WHISPER_LOCAL
+                    SpeechToTextEngineType.WHISPER_LOCAL.name()
+                        .equals(configuration.engineIdentifier())
                         && Locale.GERMAN.equals(configuration.locale())
                         && "base".equals(configuration.modelIdentifier())
                         && configuration.outputFormat() == SpeechToTextEngineOutputFormat.SRT));
@@ -340,6 +341,9 @@ public class SpeechToTextGrpcServiceTest {
   @Test
   public void shouldGetSpeechToTextEnginesSuccessfully() {
     SpeechToTextEngine speechToTextEngine = mock(SpeechToTextEngine.class);
+    when(speechToTextEngine.getIdentifier()).thenReturn(SpeechToTextEngineType.WHISPER_LOCAL.name());
+    when(speechToTextEngine.getEngineName())
+        .thenReturn(SpeechToTextEngineType.WHISPER_LOCAL.getEngineTypeName());
     when(speechToTextEngine.getSpeechToTextEngineType()).thenReturn(SpeechToTextEngineType.WHISPER_LOCAL);
     when(speechToTextEngine.getModels())
         .thenReturn(List.of(new SpeechToTextEngineModel("base"), new SpeechToTextEngineModel("small")));

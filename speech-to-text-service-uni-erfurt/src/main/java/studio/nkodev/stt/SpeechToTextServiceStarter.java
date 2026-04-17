@@ -5,7 +5,6 @@ import java.nio.file.Path;
 import java.security.cert.CertificateException;
 import java.sql.SQLException;
 import java.util.Optional;
-import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import studio.nkodev.stt.adapter.grpc.SpeechToTextGrpcServer;
@@ -17,6 +16,9 @@ import studio.nkodev.stt.config.SpeechToTextServiceConfigurationLoader;
 import studio.nkodev.stt.db.DbAccess;
 import studio.nkodev.stt.db.storage.SpeechToTextTaskDbStorage;
 import studio.nkodev.stt.engine.SpeechToTextEngineRegistry;
+import studio.nkodev.stt.engine.openai.OpenAIApiEngine;
+import studio.nkodev.stt.engine.openai.client.OpenAIApiClient;
+import studio.nkodev.stt.engine.openai.config.OpenAIApiSpeechToTextEngineConfiguration;
 import studio.nkodev.stt.engine.whisper.LocalWhisperSpeechToTextEngine;
 import studio.nkodev.stt.engine.whisper.config.LocalWhisperSpeechToTextEngineConfiguration;
 import studio.nkodev.stt.service.SpeechToTextService;
@@ -87,19 +89,30 @@ public class SpeechToTextServiceStarter {
     SpeechToTextTaskStorage speechToTextTaskStorage = new SpeechToTextTaskDbStorage(dbAccess);
 
     logger.info("Initialize speech to text engines");
+    SpeechToTextEngineRegistry speechToTextEngineRegistry = new SpeechToTextEngineRegistry();
+
     Optional<LocalWhisperSpeechToTextEngineConfiguration>
         localWhisperSpeechToTextEngineConfiguration =
             configuration
                 .engineConfigurationSection()
                 .getLocalWhisperSpeechToTextEngineConfiguration();
-    if (localWhisperSpeechToTextEngineConfiguration.isEmpty()) {
+    if (localWhisperSpeechToTextEngineConfiguration.isPresent()) {
+      LocalWhisperSpeechToTextEngine localWhisperSpeechToTextEngine =
+          new LocalWhisperSpeechToTextEngine(localWhisperSpeechToTextEngineConfiguration.get());
+      speechToTextEngineRegistry.registerSpeechToTextEngine(localWhisperSpeechToTextEngine);
+    }
+
+    for (OpenAIApiSpeechToTextEngineConfiguration openAIApiEngineConfiguration :
+        configuration.engineConfigurationSection().getOpenAIApiEngineConfigurations()) {
+      OpenAIApiClient openAIApiClient = new OpenAIApiClient(openAIApiEngineConfiguration);
+      OpenAIApiEngine openAIApiEngine =
+          new OpenAIApiEngine(openAIApiEngineConfiguration, openAIApiClient);
+      speechToTextEngineRegistry.registerSpeechToTextEngine(openAIApiEngine);
+    }
+
+    if (speechToTextEngineRegistry.getEngines().isEmpty()) {
       throw new IllegalArgumentException("No speech to text engine configuration found");
     }
-    LocalWhisperSpeechToTextEngine localWhisperSpeechToTextEngine =
-        new LocalWhisperSpeechToTextEngine(localWhisperSpeechToTextEngineConfiguration.get());
-
-    SpeechToTextEngineRegistry speechToTextEngineRegistry = new SpeechToTextEngineRegistry();
-    speechToTextEngineRegistry.registerSpeechToTextEngine(localWhisperSpeechToTextEngine);
 
     logger.info("Initialize task execution platform");
     SpeechToTextTaskScheduler speechToTextTaskScheduler =

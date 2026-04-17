@@ -17,7 +17,6 @@ import studio.nkodev.stt.api.SpeechToTextTaskConfiguration;
 import studio.nkodev.stt.api.SpeechToTextTaskState;
 import studio.nkodev.stt.engine.api.SpeechToTextEngine;
 import studio.nkodev.stt.engine.api.SpeechToTextEngineModel;
-import studio.nkodev.stt.engine.api.SpeechToTextEngineType;
 import studio.nkodev.stt.engine.api.SpeechToTextEngineOutputFormat;
 import studio.nkodev.stt.proto.SpeechToTextGrpc.SpeechToTextImplBase;
 import studio.nkodev.stt.proto.SpeechToTextService.SharedStorageResult;
@@ -368,9 +367,8 @@ class SpeechToTextGrpcService extends SpeechToTextImplBase {
                                 .toList();
                         return studio.nkodev.stt.proto.SpeechToTextService.SpeechToTextEngines
                             .SpeechToTextEngine.newBuilder()
-                            .setEngineIdentifier(currentEngine.getSpeechToTextEngineType().name())
-                            .setEngineName(
-                                currentEngine.getSpeechToTextEngineType().getEngineTypeName())
+                            .setEngineIdentifier(currentEngine.getIdentifier())
+                            .setEngineName(currentEngine.getEngineName())
                             .addAllModelIdentifiers(modelIdentifiers)
                             .addAllAllowedOutputFormats(outputFormats)
                             .build();
@@ -393,7 +391,7 @@ class SpeechToTextGrpcService extends SpeechToTextImplBase {
     Locale locale = request.hasLocale() ? Locale.forLanguageTag(request.getLocale()) : null;
 
     return new SpeechToTextTaskConfiguration(
-        SpeechToTextEngineType.valueOf(request.getEngineIdentifier()),
+        request.getEngineIdentifier(),
         locale,
         request.getModelIdentifier(),
         outputFormat);

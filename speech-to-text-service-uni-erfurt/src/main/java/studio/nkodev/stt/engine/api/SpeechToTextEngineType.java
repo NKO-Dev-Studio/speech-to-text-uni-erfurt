@@ -7,7 +7,8 @@ package studio.nkodev.stt.engine.api;
  * @since 09.03.26
  */
 public enum SpeechToTextEngineType {
-  WHISPER_LOCAL("Whisper (on premise)");
+  WHISPER_LOCAL("Whisper (on premise)"),
+  OPENAI_API("OpenAI API");
 
   private final String engineTypeName;
 

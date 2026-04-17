@@ -21,7 +21,6 @@ import studio.nkodev.stt.api.SpeechToTextTask;
 import studio.nkodev.stt.api.SpeechToTextTaskState;
 import studio.nkodev.stt.engine.SpeechToTextEngineRegistry;
 import studio.nkodev.stt.engine.api.SpeechToTextEngine;
-import studio.nkodev.stt.engine.api.SpeechToTextEngineType;
 import studio.nkodev.stt.storage.SpeechToTextTaskStorage;
 import studio.nkodev.stt.storage.audio.AudioFileStorage;
 import studio.nkodev.stt.storage.result.SpeechToTextTaskResultStorage;
@@ -162,7 +161,7 @@ public class SpeechToTextTaskScheduler {
   private Optional<ScheduledTaskExecution> createScheduledTaskExecution(SpeechToTextTask task) {
     try {
       SpeechToTextEngine speechToTextEngine =
-          engineRegistry.getEngineByEngineType(task.getConfiguration().engineType());
+          engineRegistry.getEngineByIdentifier(task.getConfiguration().engineIdentifier());
 
       Path audioFilePath = audioFileStorage.getAudioFilePathOfTask(task.getId());
       Path resultDirectory = speechToTextTaskResultStorage.createTaskResultDirectory(task.getId());

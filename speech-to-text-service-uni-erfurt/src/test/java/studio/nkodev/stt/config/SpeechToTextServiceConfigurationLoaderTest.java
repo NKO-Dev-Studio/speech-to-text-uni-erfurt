@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
@@ -123,5 +124,70 @@ public class SpeechToTextServiceConfigurationLoaderTest {
     assertEquals(
         Path.of("/tmp/server.pem"),
         configuration.grpcServerConfigurationSection().getServerCertificatePath());
+  }
+
+  @Test
+  void loadShouldReadOpenAIApiEngineConfigurations() throws IOException {
+    Path configurationFile =
+        Files.writeString(
+            tempDirectory.resolve("config-openai.yaml"),
+            """
+            audioFileStorage:
+              audioFileStorageLocation: "/tmp/audio"
+
+            resultStorage:
+              resultDirectoryLocation: "/tmp/results"
+
+            database:
+              sqlFilePath: "/tmp/speech-to-text.sqlite"
+              maximumPoolSize: 4
+              minimumIdleSize: 1
+              connectionTimeoutMs: 30000
+
+            engines:
+              openAIApiEngines:
+                - identifier: "external-whisper-a"
+                  apiBaseUrl: "https://api-a.example.com"
+                  apiToken: "token-a"
+                - identifier: "external-whisper-b"
+                  apiBaseUrl: "https://api-b.example.com/"
+                  apiToken: "token-b"
+
+            taskScheduler:
+              numberOfParallelTasks: 2
+
+            authentication:
+              type: "none"
+
+            grpcServer:
+              port: 8080
+              serverCertificatePath: "/tmp/server.pem"
+              serverPrivateKeyPath: "/tmp/server.key"
+            """);
+
+    SpeechToTextServiceConfiguration configuration =
+        SpeechToTextServiceConfigurationLoader.load(configurationFile);
+
+    assertTrue(
+        configuration
+            .engineConfigurationSection()
+            .getLocalWhisperSpeechToTextEngineConfiguration()
+            .isEmpty());
+    assertEquals(
+        2, configuration.engineConfigurationSection().getOpenAIApiEngineConfigurations().size());
+    assertEquals(
+        "external-whisper-a",
+        configuration
+            .engineConfigurationSection()
+            .getOpenAIApiEngineConfigurations()
+            .getFirst()
+            .getIdentifier());
+    assertEquals(
+        URI.create("https://api-a.example.com"),
+        configuration
+            .engineConfigurationSection()
+            .getOpenAIApiEngineConfigurations()
+            .getFirst()
+            .getApiBaseUrl());
   }
 }

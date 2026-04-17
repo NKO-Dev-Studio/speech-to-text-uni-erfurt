@@ -25,6 +25,12 @@ engines:
       type: "cpu"
       numberOfThreads: 4 #set to 0 if you don't want to limit the number of threads per executed task
 
+  # optional
+  openAIApiEngines:
+    - identifier: "openai-external-whisper"
+      apiBaseUrl: "https://api.example.com"
+      apiToken: "replace-with-token"
+
 taskScheduler:
   numberOfParallelTasks: 4
 

@@ -1,7 +1,11 @@
 package studio.nkodev.stt.config;
 
 import java.nio.file.Path;
+import java.net.URI;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
+import studio.nkodev.stt.engine.openai.config.OpenAIApiSpeechToTextEngineConfiguration;
 import studio.nkodev.stt.adapter.grpc.SpeechToTextGrpcServerConfiguration;
 import studio.nkodev.stt.db.DbConnectionCoordinatorConfig;
 import studio.nkodev.stt.engine.whisper.config.LocalWhisperSpeechToTextEngineConfiguration;
@@ -71,16 +75,24 @@ public record SpeechToTextServiceConfiguration(
   public static class EngineConfigurationSection {
     private final LocalWhisperSpeechToTextEngineConfiguration
         localWhisperSpeechToTextEngineConfiguration;
+    private final List<OpenAIApiSpeechToTextEngineConfiguration> openAIApiEngineConfigurations;
 
     public EngineConfigurationSection(
-        LocalWhisperSpeechToTextEngineConfiguration localWhisperSpeechToTextEngineConfiguration) {
+        LocalWhisperSpeechToTextEngineConfiguration localWhisperSpeechToTextEngineConfiguration,
+        Collection<? extends OpenAIApiSpeechToTextEngineConfiguration>
+            openAIApiEngineConfigurations) {
       this.localWhisperSpeechToTextEngineConfiguration =
           localWhisperSpeechToTextEngineConfiguration;
+      this.openAIApiEngineConfigurations = List.copyOf(openAIApiEngineConfigurations);
     }
 
     public Optional<LocalWhisperSpeechToTextEngineConfiguration>
         getLocalWhisperSpeechToTextEngineConfiguration() {
       return Optional.ofNullable(localWhisperSpeechToTextEngineConfiguration);
+    }
+
+    public List<OpenAIApiSpeechToTextEngineConfiguration> getOpenAIApiEngineConfigurations() {
+      return openAIApiEngineConfigurations;
     }
   }
 
@@ -111,6 +123,25 @@ public record SpeechToTextServiceConfiguration(
 
   public record WhisperDeviceConfigurationSection(
       String type, Integer numberOfThreads, Integer gpuNumber) {}
+
+  public record OpenAIApiEngineConfigurationSection(String identifier, URI apiBaseUrl, String apiToken)
+      implements OpenAIApiSpeechToTextEngineConfiguration {
+
+    @Override
+    public String getIdentifier() {
+      return identifier;
+    }
+
+    @Override
+    public URI getApiBaseUrl() {
+      return apiBaseUrl;
+    }
+
+    @Override
+    public String getApiToken() {
+      return apiToken;
+    }
+  }
 
   public record TaskSchedulerConfigurationSection(int numberOfParallelTasks)
       implements SpeechToTextTaskSchedulerConfiguration {

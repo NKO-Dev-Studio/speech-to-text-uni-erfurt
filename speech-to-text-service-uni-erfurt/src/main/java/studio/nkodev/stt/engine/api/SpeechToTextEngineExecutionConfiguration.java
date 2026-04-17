@@ -16,6 +16,7 @@ import java.util.Locale;
  * @since 26.02.2026
  */
 public record SpeechToTextEngineExecutionConfiguration(
+    long taskId,
     String modelIdentifier,
     Path audioFilePath,
     Path resultDirectoryPath,
@@ -23,6 +24,9 @@ public record SpeechToTextEngineExecutionConfiguration(
     Locale locale) {
 
   public SpeechToTextEngineExecutionConfiguration {
+    if (taskId < 1) {
+      throw new IllegalArgumentException("Invalid task id provided");
+    }
     requireValue(modelIdentifier, "No model identifier provided");
     requireValue(audioFilePath, "No audio file path provided");
     requireValue(resultDirectoryPath, "No result directory path provided");
@@ -30,11 +34,29 @@ public record SpeechToTextEngineExecutionConfiguration(
   }
 
   public SpeechToTextEngineExecutionConfiguration(
+      long taskId,
       String modelIdentifier,
       Path audioFilePath,
       Path resultDirectoryPath,
       SpeechToTextEngineOutputFormat outputFormat) {
-    this(modelIdentifier, audioFilePath, resultDirectoryPath, outputFormat, null);
+    this(taskId, modelIdentifier, audioFilePath, resultDirectoryPath, outputFormat, null);
+  }
+
+  public SpeechToTextEngineExecutionConfiguration(
+      String modelIdentifier,
+      Path audioFilePath,
+      Path resultDirectoryPath,
+      SpeechToTextEngineOutputFormat outputFormat,
+      Locale locale) {
+    this(1L, modelIdentifier, audioFilePath, resultDirectoryPath, outputFormat, locale);
+  }
+
+  public SpeechToTextEngineExecutionConfiguration(
+      String modelIdentifier,
+      Path audioFilePath,
+      Path resultDirectoryPath,
+      SpeechToTextEngineOutputFormat outputFormat) {
+    this(1L, modelIdentifier, audioFilePath, resultDirectoryPath, outputFormat, null);
   }
 
   private static <T> T requireValue(T value, String message) {

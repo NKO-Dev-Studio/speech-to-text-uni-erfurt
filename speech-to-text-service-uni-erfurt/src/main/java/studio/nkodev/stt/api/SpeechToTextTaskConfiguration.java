@@ -12,15 +12,30 @@ import java.util.Locale;
  * @since 28.02.26
  */
 public record SpeechToTextTaskConfiguration(
-    SpeechToTextEngineType engineType,
+    String engineIdentifier,
     Locale locale,
     String modelIdentifier,
     SpeechToTextEngineOutputFormat outputFormat) {
 
+  public SpeechToTextTaskConfiguration(
+      SpeechToTextEngineType engineType,
+      Locale locale,
+      String modelIdentifier,
+      SpeechToTextEngineOutputFormat outputFormat) {
+    this(engineType.name(), locale, modelIdentifier, outputFormat);
+  }
+
   public SpeechToTextTaskConfiguration {
-    requireValue(engineType, "No engine type provided");
-    requireValue(modelIdentifier, "No model identifier provided");
+    requireStringValue(engineIdentifier, "No engine identifier provided");
+    requireStringValue(modelIdentifier, "No model identifier provided");
     requireValue(outputFormat, "No output format provided");
+  }
+
+  private static String requireStringValue(String value, String message) {
+    if (value == null || value.isBlank()) {
+      throw new IllegalArgumentException(message);
+    }
+    return value;
   }
 
   private static <T> T requireValue(T value, String message) {

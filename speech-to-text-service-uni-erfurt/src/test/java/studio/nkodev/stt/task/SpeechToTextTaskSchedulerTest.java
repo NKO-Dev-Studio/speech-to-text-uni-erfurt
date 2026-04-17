@@ -68,7 +68,9 @@ public class SpeechToTextTaskSchedulerTest {
 
     when(speechToTextTaskStorage.getTasks(any())).thenReturn(Stream.empty());
     when(speechToTextTaskStorage.claimNextPendingTask()).thenReturn(Optional.empty());
-    when(speechToTextEngineRegistry.getEngineByEngineType(eq(SpeechToTextEngineType.WHISPER_LOCAL)))
+    when(
+            speechToTextEngineRegistry.getEngineByIdentifier(
+                eq(SpeechToTextEngineType.WHISPER_LOCAL.name())))
         .thenReturn(speechToTextEngine);
     when(audioFileStorage.getAudioFilePathOfTask(eq(TASK_ID))).thenReturn(audioFilePath);
     when(speechToTextTaskResultStorage.createTaskResultDirectory(eq(TASK_ID)))

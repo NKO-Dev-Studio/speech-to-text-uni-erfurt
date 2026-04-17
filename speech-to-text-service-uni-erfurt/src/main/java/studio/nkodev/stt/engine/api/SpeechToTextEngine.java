@@ -47,6 +47,16 @@ public interface SpeechToTextEngine {
           SpeechToTextEngineMissingResultException;
 
   /**
+   * @return the identifier of this engine instance
+   */
+  String getIdentifier();
+
+  /**
+   * @return the user-facing engine name of this instance
+   */
+  String getEngineName();
+
+  /**
    * @return the {@link SpeechToTextEngineType} of this instance
    */
   SpeechToTextEngineType getSpeechToTextEngineType();
