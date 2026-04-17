@@ -18,13 +18,14 @@ database:
   minimumIdleSize: 1
   connectionTimeoutMs: 30000
 
+# All engine types are optional. But one must at least be defined to successfully start the service
 engines:
+  # optional
   localWhisper:
     whisperExecutable: "/path/to/whisper-cli"
     device:
       type: "cpu"
       numberOfThreads: 4 #set to 0 if you don't want to limit the number of threads per executed task
-
   # optional
   openAIApiEngines:
     - identifier: "openai-external-whisper"
