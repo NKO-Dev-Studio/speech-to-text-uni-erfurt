@@ -4,7 +4,7 @@
 
   <groupId>studio.nko-dev</groupId>
   <artifactId>speech-to-text-uni-erfurt</artifactId>
-  <version>1.0.1</version>
+  <version>1.0.2-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>speech-to-text-uni-erfurt</name>
@@ -33,7 +33,7 @@
     <connection>scm:git:https://github.com/NKO-Dev-Studio/speech-to-text-uni-erfurt.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/NKO-Dev-Studio/speech-to-text-uni-erfurt.git</developerConnection>
     <url>https://github.com/NKO-Dev-Studio/speech-to-text-uni-erfurt</url>
-    <tag>1.0.1</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <modules>
