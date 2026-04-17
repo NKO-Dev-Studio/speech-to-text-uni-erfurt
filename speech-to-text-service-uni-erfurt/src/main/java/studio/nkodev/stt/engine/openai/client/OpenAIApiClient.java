@@ -1,5 +1,8 @@
 package studio.nkodev.stt.engine.openai.client;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -29,6 +32,7 @@ public class OpenAIApiClient {
   private static final String FILES_ENDPOINT = "/v1/files";
   private static final String MODELS_ENDPOINT = "/v1/models";
   private static final String TRANSCRIPTIONS_ENDPOINT = "/v1/audio/transcriptions";
+  private static final Gson GSON = new Gson();
   private static final Pattern JSON_STRING_FIELD_PATTERN_TEMPLATE =
       Pattern.compile("\"%s\"\\s*:\\s*\"((?:\\\\.|[^\"])*)\"");
 
@@ -132,6 +136,7 @@ public class OpenAIApiClient {
         continue;
       }
 
+      // Currently we can't filter by usage type. So this is the only possibility to get available models
       String normalizedIdentifier = modelIdentifier.toLowerCase(Locale.ROOT);
       if (normalizedIdentifier.contains("transcribe")
           || normalizedIdentifier.contains("whisper")) {
@@ -206,9 +211,17 @@ public class OpenAIApiClient {
 
     String trimmedResponseBody = responseBody.trim();
     if (trimmedResponseBody.startsWith("{")) {
-      String textValue = extractOptionalStringField(responseBody, "text");
-      if (textValue != null) {
-        return textValue;
+      try {
+        JsonObject responseJson = GSON.fromJson(responseBody, JsonObject.class);
+        if (responseJson != null) {
+          JsonElement textElement = responseJson.get("text");
+          if (textElement != null && !textElement.isJsonNull()) {
+            return textElement.getAsString();
+          }
+        }
+      } catch (Exception exception) {
+        throw new OpenAIApiClientException(
+            "Failed to parse transcription response body as JSON", exception);
       }
     }
 
@@ -220,20 +233,14 @@ public class OpenAIApiClient {
       String modelIdentifier,
       SpeechToTextEngineOutputFormat outputFormat,
       Locale locale) {
-    StringBuilder requestBody =
-        new StringBuilder(
-            "{\"file\":\""
-                + escapeJson(fileId)
-                + "\",\"model\":\""
-                + escapeJson(modelIdentifier)
-                + "\",\"response_format\":\""
-                + escapeJson(mapOutputFormat(outputFormat))
-                + "\"");
+    JsonObject requestBody = new JsonObject();
+    requestBody.addProperty("file", fileId);
+    requestBody.addProperty("model", modelIdentifier);
+    requestBody.addProperty("response_format", mapOutputFormat(outputFormat));
     if (locale != null) {
-      requestBody.append(",\"language\":\"").append(escapeJson(locale.getLanguage())).append("\"");
+      requestBody.addProperty("language", locale.getLanguage());
     }
-    requestBody.append("}");
-    return requestBody.toString();
+    return GSON.toJson(requestBody);
   }
 
   private static String extractJsonArrayByFieldName(String json, String fieldName) {
@@ -295,10 +302,6 @@ public class OpenAIApiClient {
       return null;
     }
     return matcher.group(1).replace("\\\"", "\"").replace("\\\\", "\\");
-  }
-
-  private static String escapeJson(String value) {
-    return value.replace("\\", "\\\\").replace("\"", "\\\"");
   }
 
   private static String requireToken(String apiToken) {
