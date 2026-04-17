@@ -5,11 +5,11 @@ import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.FutureTask;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,28 +83,32 @@ public class LocalWhisperSpeechToTextEngine implements SpeechToTextEngine {
     Path expectedResultFilePath =
         createExpectedResultFilePath(speechToTextEngineExecutionConfiguration);
 
-    Runtime runtime = Runtime.getRuntime();
-
     try {
       logger.debug(
           "Start engine processing for file {} using command {}",
           speechToTextEngineExecutionConfiguration.audioFilePath(),
           Arrays.toString(commandLineArray));
-      Process process = runtime.exec(commandLineArray);
+      Process process =
+          new ProcessBuilder(commandLineArray)
+              .redirectErrorStream(true)
+              .start();
+      FutureTask<byte[]> processOutputCollector =
+          new FutureTask<>(() -> process.getInputStream().readAllBytes());
+      Thread.ofVirtual()
+          .name("local-whisper-output-consumer-" + System.nanoTime())
+          .start(processOutputCollector);
       int processExitCode = process.waitFor();
+      byte[] processOutputBytes = processOutputCollector.get();
+      String processOutput = new String(processOutputBytes, StandardCharsets.UTF_8);
       logger.debug(
           "Finished engine processing for file {}",
           speechToTextEngineExecutionConfiguration.audioFilePath());
       if (processExitCode != 0) {
-        String errorMessage =
-            new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
-        throw new SpeechToTextEngineExecutionException(errorMessage);
+        throw new SpeechToTextEngineExecutionException(processOutput);
       }
 
       if (!Files.exists(expectedResultFilePath)) {
-        String errorMessage =
-                new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
-        logger.error(errorMessage);
+        logger.error(processOutput);
         throw new SpeechToTextEngineMissingResultException(
             speechToTextEngineExecutionConfiguration.outputFormat(),
             speechToTextEngineExecutionConfiguration.audioFilePath());
