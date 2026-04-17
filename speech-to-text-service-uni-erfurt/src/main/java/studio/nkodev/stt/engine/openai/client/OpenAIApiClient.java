@@ -7,7 +7,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -53,18 +52,19 @@ public class OpenAIApiClient {
     Objects.requireNonNull(filePath, "No file path provided");
     requireString(fileName, "No file name provided");
 
-    String boundary = "----stt-openai-" + System.nanoTime();
-    byte[] requestBody;
+    MultipartFormDataBodyPublisher multipartBodyPublisher = new MultipartFormDataBodyPublisher();
     try {
-      requestBody = createUploadRequestBody(filePath, fileName, boundary);
+      multipartBodyPublisher.addTextPart("purpose", "user_data");
+      multipartBodyPublisher.addFilePart(
+          "file", fileName, "application/octet-stream", filePath);
     } catch (IOException exception) {
       throw new OpenAIApiClientException("Failed to read audio file for upload", exception);
     }
 
     HttpRequest request =
         baseRequestBuilder(resolve(FILES_ENDPOINT))
-            .header("Content-Type", "multipart/form-data; boundary=" + boundary)
-            .POST(HttpRequest.BodyPublishers.ofByteArray(requestBody))
+            .header("Content-Type", multipartBodyPublisher.getContentType())
+            .POST(multipartBodyPublisher.build())
             .build();
     String responseBody = sendRequest(request);
 
@@ -184,34 +184,6 @@ public class OpenAIApiClient {
 
   private URI resolve(String path) {
     return URI.create(apiBaseUrl + path);
-  }
-
-  private static byte[] createUploadRequestBody(Path filePath, String fileName, String boundary)
-      throws IOException {
-    String metadataPart =
-        "--"
-            + boundary
-            + "\r\n"
-            + "Content-Disposition: form-data; name=\"purpose\"\r\n\r\n"
-            + "user_data\r\n"
-            + "--"
-            + boundary
-            + "\r\n"
-            + "Content-Disposition: form-data; name=\"file\"; filename=\""
-            + fileName
-            + "\"\r\n"
-            + "Content-Type: application/octet-stream\r\n\r\n";
-    String closingBoundary = "\r\n--" + boundary + "--\r\n";
-
-    byte[] fileContent = Files.readAllBytes(filePath);
-    byte[] prefix = metadataPart.getBytes(StandardCharsets.UTF_8);
-    byte[] suffix = closingBoundary.getBytes(StandardCharsets.UTF_8);
-    byte[] requestBody = new byte[prefix.length + fileContent.length + suffix.length];
-
-    System.arraycopy(prefix, 0, requestBody, 0, prefix.length);
-    System.arraycopy(fileContent, 0, requestBody, prefix.length, fileContent.length);
-    System.arraycopy(suffix, 0, requestBody, prefix.length + fileContent.length, suffix.length);
-    return requestBody;
   }
 
   private static String mapOutputFormat(SpeechToTextEngineOutputFormat outputFormat) {
@@ -342,5 +314,73 @@ public class OpenAIApiClient {
 
   private static String encode(String value) {
     return URLEncoder.encode(value, StandardCharsets.UTF_8);
+  }
+
+  private static final class MultipartFormDataBodyPublisher {
+
+    private static final String CRLF = "\r\n";
+
+    private final String boundary = "----stt-openai-" + System.nanoTime();
+    private final List<HttpRequest.BodyPublisher> parts = new ArrayList<>();
+    private boolean built;
+
+    public void addTextPart(String name, String value) {
+      verifyNotBuilt();
+      parts.add(
+          HttpRequest.BodyPublishers.ofString(
+              "--"
+                  + boundary
+                  + CRLF
+                  + "Content-Disposition: form-data; name=\""
+                  + name
+                  + "\""
+                  + CRLF
+                  + CRLF
+                  + value
+                  + CRLF,
+              StandardCharsets.UTF_8));
+    }
+
+    public void addFilePart(String name, String fileName, String contentType, Path filePath)
+        throws IOException {
+      verifyNotBuilt();
+      parts.add(
+          HttpRequest.BodyPublishers.ofString(
+              "--"
+                  + boundary
+                  + CRLF
+                  + "Content-Disposition: form-data; name=\""
+                  + name
+                  + "\"; filename=\""
+                  + fileName
+                  + "\""
+                  + CRLF
+                  + "Content-Type: "
+                  + contentType
+                  + CRLF
+                  + CRLF,
+              StandardCharsets.UTF_8));
+      parts.add(HttpRequest.BodyPublishers.ofFile(filePath));
+      parts.add(HttpRequest.BodyPublishers.ofString(CRLF, StandardCharsets.UTF_8));
+    }
+
+    public HttpRequest.BodyPublisher build() {
+      verifyNotBuilt();
+      built = true;
+      parts.add(
+          HttpRequest.BodyPublishers.ofString(
+              "--" + boundary + "--" + CRLF, StandardCharsets.UTF_8));
+      return HttpRequest.BodyPublishers.concat(parts.toArray(HttpRequest.BodyPublisher[]::new));
+    }
+
+    public String getContentType() {
+      return "multipart/form-data; boundary=" + boundary;
+    }
+
+    private void verifyNotBuilt() {
+      if (built) {
+        throw new IllegalStateException("Multipart request already built");
+      }
+    }
   }
 }
