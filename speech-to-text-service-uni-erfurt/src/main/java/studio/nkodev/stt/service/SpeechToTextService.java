@@ -160,7 +160,12 @@ public class SpeechToTextService {
   }
 
   public Collection<SpeechToTextEngine> getSpeechToTextEngines() {
-    return speechToTextEngineRegistry.getEngines();
+    try {
+      return speechToTextEngineRegistry.getEngines();
+    }catch (Exception exception) {
+      logger.error("Error during getting engines", exception);
+      throw exception;
+    }
   }
 
   public void setSharedResultStorage(SpeechToTextTaskSharedResultStorage sharedResultStorage) {
