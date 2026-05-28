@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
@@ -12,6 +13,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
@@ -42,6 +44,11 @@ public class LocalWhisperSpeechToTextEngineTest {
       Path.of(
           Objects.requireNonNull(
                   LocalWhisperSpeechToTextEngine.class.getResource("whisper-cli-mock.sh"))
+              .getPath());
+  private static final Path WHISPER_CLI_NOISY_MOCK_PATH =
+      Path.of(
+          Objects.requireNonNull(
+                  LocalWhisperSpeechToTextEngine.class.getResource("whisper-cli-noisy-mock.sh"))
               .getPath());
   private static final Path WHISPER_CLI_RESULT_JSON_OUTPUT_PATH =
       Path.of("/tmp/whisper-mock-arguments.json");
@@ -309,6 +316,29 @@ public class LocalWhisperSpeechToTextEngineTest {
     assertThrows(
         SpeechToTextEngineMissingResultException.class,
         () -> engine.executeSpeechToTextTask(taskConfiguration));
+  }
+
+  @Test
+  public void shouldHandleLargeProcessOutputWithoutBlocking() {
+    LocalWhisperSpeechToTextEngineConfiguration configuration =
+        new LocalWhisperSpeechToTextEngineConfiguration() {
+          @Override
+          public Path getWhisperExecutable() {
+            return WHISPER_CLI_NOISY_MOCK_PATH;
+          }
+
+          @Override
+          public LocalWhisperSpeechToTextEngineDeviceConfiguration getDeviceConfiguration() {
+            return new LocalWhisperSpeechToTextEngineCpuDeviceConfiguration(0);
+          }
+        };
+    LocalWhisperSpeechToTextEngine engine = new LocalWhisperSpeechToTextEngine(configuration);
+    SpeechToTextEngineExecutionConfiguration taskConfiguration =
+        new SpeechToTextEngineExecutionConfiguration(
+            "base", audioFilePath, testResultDirectory, SpeechToTextEngineOutputFormat.TXT);
+
+    assertTimeoutPreemptively(
+        Duration.ofSeconds(3), () -> engine.executeSpeechToTextTask(taskConfiguration));
   }
 
   private static WhisperProgramArgument readWhisperMockJsonResult() throws FileNotFoundException {

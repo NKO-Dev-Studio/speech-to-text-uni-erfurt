@@ -33,7 +33,8 @@ into the YAML service configuration before the gRPC server is started.
 
 The image is intended for running a self-contained speech-to-text service instance with persistent storage for the
 SQLite database, uploaded audio files, and generated transcription results. TLS is always enabled for the gRPC server,
-so certificate files must be provided to the container.
+so certificate files must be provided to the container. The service storage paths inside the container are fixed and
+cannot be reconfigured.
 
 Build the image locally:
 
@@ -46,7 +47,8 @@ Minimal example:
 ```bash
 docker run --rm \
   -p 8080:8080 \
-  --mount type=bind,src="$(pwd)/data",target=/var/opt/speech-to-text-service \
+  --mount type=bind,src="$(pwd)/storage",target=/var/opt/speech-to-text-service/storage \
+  --mount type=bind,src="$(pwd)/shared-storage",target=/var/opt/speech-to-text-service/shared-storage \
   --mount type=bind,src="$(pwd)/certificates/server-certificate.pem",target=/certificates/server-certificate.pem,readonly \
   --mount type=bind,src="$(pwd)/certificates/server-private-key.pem",target=/certificates/server-private-key.pem,readonly \
   -e SPEECH_TO_TEXT_GRPC_SERVER_CERTIFICATE_PATH=/certificates/server-certificate.pem \
@@ -57,28 +59,30 @@ docker run --rm \
 ## Docker configuration
 
 The container does not require a manually authored YAML file by default. On startup, the entrypoint script generates
-the configuration file at `SPEECH_TO_TEXT_CONFIGURATION_FILE_LOCATION` from the environment variables listed below.
+the configuration file at `/etc/opt/speech-to-text-service/speech-to-text-service.yaml`.
 
-### Base paths and generated config
+### Fixed container paths
 
-* `APP_HOME`: Installation directory of the service inside the container. Default:
-  `/opt/speech-to-text-service-uni-erfurt`
-* `APP_DATA_LOCATION`: Base directory for runtime data. Default: `/var/opt/speech-to-text-service`
-* `SPEECH_TO_TEXT_CONFIGURATION_FILE_LOCATION`: Location of the generated YAML configuration file. Default:
-  `/etc/opt/speech-to-text-service/speech-to-text-service.yaml`
+The following paths are fixed in the Docker image and cannot be changed with environment variables:
 
-### Storage and database
+* Service installation directory: `/opt/speech-to-text-service-uni-erfurt`
+* Generated YAML configuration file: `/etc/opt/speech-to-text-service/speech-to-text-service.yaml`
+* Logback configuration file: `/etc/opt/speech-to-text-service/logback.xml`
+* Service storage directory: `/var/opt/speech-to-text-service/storage`
+* Audio working directory: `/var/opt/speech-to-text-service/storage/audio`
+* Result working directory: `/var/opt/speech-to-text-service/storage/results`
+* Shared storage directory: `/var/opt/speech-to-text-service/shared-storage`
+* Shared audio directory: `/var/opt/speech-to-text-service/shared-storage/audio`
+* Shared result directory: `/var/opt/speech-to-text-service/shared-storage/results`
+* SQLite database file: `/var/opt/speech-to-text-service/storage/speech-to-text-db.sqlite`
 
-* `SPEECH_TO_TEXT_AUDIO_FILE_STORAGE_LOCATION`: Working directory for audio files managed by the service. Default:
-  `/var/opt/speech-to-text-service/audio-files`
-* `SPEECH_TO_TEXT_AUDIO_FILE_STORAGE_SHARED_STORAGE_LOCATION`: Optional shared directory used to exchange audio files
-  with other services. Default: `/var/opt/speech-to-text-service/audio-files-shared`
-* `SPEECH_TO_TEXT_RESULT_STORAGE_LOCATION`: Working directory for generated transcription result files. Default:
-  `/var/opt/speech-to-text-service/results`
-* `SPEECH_TO_TEXT_RESULT_STORAGE_SHARED_STORAGE_LOCATION`: Optional shared directory used to expose result files to
-  other services. Default: `/var/opt/speech-to-text-service/results-shared`
-* `SPEECH_TO_TEXT_DB_SQL_FILE_PATH`: SQLite database file used for task and state storage. Default:
-  `/var/opt/speech-to-text-service/speech-to-text-db.sqlite`
+### Runtime configuration
+
+The following environment variables are supported at runtime. Storage paths and database file locations are excluded
+because they are fixed by the image.
+
+### Database pool
+
 * `SPEECH_TO_TEXT_DB_MAXIMUM_POOL_SIZE`: Maximum JDBC connection pool size. Default: `4`
 * `SPEECH_TO_TEXT_DB_MINIMUM_IDLE_SIZE`: Minimum number of idle DB connections kept in the pool. Default: `1`
 * `SPEECH_TO_TEXT_DB_CONNECTION_TIMEOUT_MS`: Connection acquisition timeout in milliseconds. Default: `30000`
@@ -119,12 +123,11 @@ available inside the container:
     `SPEECH_TO_TEXT_AUTHENTICATION_CERTIFICATE_ROOT_CERTIFICATE_PATH` when client certificate authentication is enabled
   * A password file referenced by `SPEECH_TO_TEXT_GRPC_SERVER_PRIVATE_KEY_PASSWORD_FILE` when the private key is
     encrypted
-* Recommended persistent mounts:
-  * `APP_DATA_LOCATION` or the individual storage/database paths so task state, uploaded audio, and result files survive
-    container restarts
-  * `SPEECH_TO_TEXT_AUDIO_FILE_STORAGE_SHARED_STORAGE_LOCATION` and
-    `SPEECH_TO_TEXT_RESULT_STORAGE_SHARED_STORAGE_LOCATION` when external services need shared filesystem access
+* Mountable service directories:
+  * `/var/opt/speech-to-text-service/storage` can be mounted to persist the SQLite database and the internal
+    `audio` and `results` working directories across container restarts
+  * `/var/opt/speech-to-text-service/shared-storage` can be mounted when the `audio` and `results` shared
+    subdirectories must be exchanged with other services through a shared filesystem
 
-No static YAML configuration file needs to be provided unless you intentionally override the generated setup. If you do
-set `SPEECH_TO_TEXT_CONFIGURATION_FILE_LOCATION` to a custom path, its parent directory must be writable by the
-container.
+No static YAML configuration file needs to be provided. The container always generates it at
+`/etc/opt/speech-to-text-service/speech-to-text-service.yaml`.

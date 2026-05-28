@@ -4,7 +4,7 @@
 
   <groupId>studio.nko-dev</groupId>
   <artifactId>speech-to-text-uni-erfurt</artifactId>
-  <version>1.0.1-SNAPSHOT</version>
+  <version>1.0.2-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>speech-to-text-uni-erfurt</name>
