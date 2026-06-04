@@ -6,6 +6,7 @@ import io.grpc.ChannelCredentials;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.Grpc;
 import io.grpc.ManagedChannel;
+import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.TlsChannelCredentials;
 import io.grpc.stub.StreamObserver;
@@ -28,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import studio.nkodev.stt.client.config.SpeechToTextServiceClientConfiguration;
 import studio.nkodev.stt.client.config.SpeechToTextTransferType;
+import studio.nkodev.stt.client.exception.SpeechToTextServiceClientErrorType;
 import studio.nkodev.stt.client.exception.SpeechToTextServiceClientException;
 import studio.nkodev.stt.client.adapter.SpeechToTextServiceAdapter;
 import studio.nkodev.stt.client.api.SpeechToTextEngine;
@@ -441,7 +443,16 @@ public class GrpcSpeechToTextServiceAdapter implements SpeechToTextServiceAdapte
         exception.getStatus().getDescription() == null
             ? exception.getStatus().getCode().name()
             : exception.getStatus().getDescription();
-    return new SpeechToTextServiceClientException(message + ": " + description, exception);
+    return new SpeechToTextServiceClientException(
+        mapErrorType(exception.getStatus().getCode()), message + ": " + description, exception);
+  }
+
+  private static SpeechToTextServiceClientErrorType mapErrorType(Status.Code statusCode) {
+    return switch (statusCode) {
+      case NOT_FOUND -> SpeechToTextServiceClientErrorType.NOT_FOUND;
+      case UNAVAILABLE, DEADLINE_EXCEEDED -> SpeechToTextServiceClientErrorType.CONNECTION_ERROR;
+      default -> SpeechToTextServiceClientErrorType.INTERNAL_SERVER_ERROR;
+    };
   }
 
   private static void awaitStreamCompletion(

@@ -8,11 +8,32 @@ package studio.nkodev.stt.client.exception;
  */
 public class SpeechToTextServiceClientException extends RuntimeException {
 
+  private final SpeechToTextServiceClientErrorType errorType;
+
   public SpeechToTextServiceClientException(String message) {
-    super(message);
+    this(SpeechToTextServiceClientErrorType.INTERNAL_SERVER_ERROR, message);
   }
 
   public SpeechToTextServiceClientException(String message, Throwable cause) {
+    this(SpeechToTextServiceClientErrorType.INTERNAL_SERVER_ERROR, message, cause);
+  }
+
+  public SpeechToTextServiceClientException(
+      SpeechToTextServiceClientErrorType errorType, String message) {
+    super(message);
+    this.errorType = errorType;
+  }
+
+  public SpeechToTextServiceClientException(
+      SpeechToTextServiceClientErrorType errorType, String message, Throwable cause) {
     super(message, cause);
+    this.errorType = errorType;
+  }
+
+  /**
+   * @return the type of error that caused this exception
+   */
+  public SpeechToTextServiceClientErrorType getErrorType() {
+    return errorType;
   }
 }
