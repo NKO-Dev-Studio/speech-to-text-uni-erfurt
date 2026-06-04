@@ -113,7 +113,6 @@ public class SpeechToTextService {
    */
   public SpeechToTextTaskState getSpeechToTextTaskState(long speechToTextTaskId)
       throws StorageException {
-    logger.debug("Loading task state of task having id: {}", speechToTextTaskId);
     try {
       return speechToTextTaskStorage.getTaskState(speechToTextTaskId);
     } catch (Exception exception) {

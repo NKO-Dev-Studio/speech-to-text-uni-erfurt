@@ -380,6 +380,7 @@ class SpeechToTextGrpcService extends SpeechToTextImplBase {
               .build());
       responseObserver.onCompleted();
     } catch (Exception e) {
+      logger.error("Error getting engines", e);
       responseObserver.onError(Status.INTERNAL.asRuntimeException());
     }
   }

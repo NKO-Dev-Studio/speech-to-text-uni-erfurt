@@ -9,8 +9,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import studio.nkodev.stt.engine.api.SpeechToTextEngine;
 import studio.nkodev.stt.engine.api.SpeechToTextEngineExecutionConfiguration;
 import studio.nkodev.stt.engine.api.SpeechToTextEngineModel;
@@ -31,9 +29,8 @@ import studio.nkodev.stt.engine.openai.config.OpenAIApiSpeechToTextEngineConfigu
  */
 public class OpenAIApiEngine implements SpeechToTextEngine {
 
-  private static final Logger logger = LoggerFactory.getLogger(OpenAIApiEngine.class);
   private static final String UPLOADED_FILE_NAME_TEMPLATE =
-      "speech-to-text-service-uni-erfurt-task-%d.audio";
+      "speech-to-text-service-uni-erfurt-task-%d";
   private static final Set<SpeechToTextEngineOutputFormat> ALLOWED_OUTPUT_FORMATS =
       Set.of(
           SpeechToTextEngineOutputFormat.TXT,
@@ -79,15 +76,11 @@ public class OpenAIApiEngine implements SpeechToTextEngine {
       throw new SpeechToTextEngineModelNotFoundException(modelIdentifier);
     }
 
-    String uploadedFileId = null;
     try {
-      uploadedFileId =
-          openAIApiClient.uploadFile(
-              speechToTextEngineExecutionConfiguration.audioFilePath(),
-              createUploadFileName(speechToTextEngineExecutionConfiguration.taskId()));
       String transcriptionResult =
           openAIApiClient.startTranscription(
-              uploadedFileId,
+              speechToTextEngineExecutionConfiguration.audioFilePath(),
+              createUploadFileName(speechToTextEngineExecutionConfiguration.taskId()),
               modelIdentifier,
               speechToTextEngineExecutionConfiguration.outputFormat(),
               speechToTextEngineExecutionConfiguration.locale());
@@ -101,8 +94,6 @@ public class OpenAIApiEngine implements SpeechToTextEngine {
     } catch (IOException | OpenAIApiClientException exception) {
       throw new SpeechToTextEngineExecutionException(
           "Error while executing speech to text task using OpenAI API engine", exception);
-    } finally {
-      deleteUploadedFileIfRequired(uploadedFileId);
     }
   }
 
@@ -145,17 +136,5 @@ public class OpenAIApiEngine implements SpeechToTextEngine {
                 + speechToTextEngineExecutionConfiguration.taskId()
                 + "."
                 + speechToTextEngineExecutionConfiguration.outputFormat().getFileSuffix());
-  }
-
-  private void deleteUploadedFileIfRequired(String uploadedFileId) {
-    if (uploadedFileId == null || uploadedFileId.isBlank()) {
-      return;
-    }
-
-    try {
-      openAIApiClient.deleteFile(uploadedFileId);
-    } catch (Exception exception) {
-      logger.warn("Failed to delete uploaded file {} for engine {}", uploadedFileId, getIdentifier(), exception);
-    }
   }
 }

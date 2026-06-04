@@ -4,14 +4,16 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
-import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
@@ -29,7 +31,6 @@ import studio.nkodev.stt.engine.openai.config.OpenAIApiSpeechToTextEngineConfigu
  */
 public class OpenAIApiClient {
 
-  private static final String FILES_ENDPOINT = "/v1/files";
   private static final String MODELS_ENDPOINT = "/v1/models";
   private static final String TRANSCRIPTIONS_ENDPOINT = "/v1/audio/transcriptions";
   private static final Gson GSON = new Gson();
@@ -52,57 +53,39 @@ public class OpenAIApiClient {
     this.apiToken = requireToken(configuration.getApiToken());
   }
 
-  public String uploadFile(Path filePath, String fileName) throws OpenAIApiClientException {
-    Objects.requireNonNull(filePath, "No file path provided");
-    requireString(fileName, "No file name provided");
-
-    MultipartFormDataBodyPublisher multipartBodyPublisher = new MultipartFormDataBodyPublisher();
-    try {
-      multipartBodyPublisher.addTextPart("purpose", "user_data");
-      multipartBodyPublisher.addFilePart(
-          "file", fileName, "application/octet-stream", filePath);
-    } catch (IOException exception) {
-      throw new OpenAIApiClientException("Failed to read audio file for upload", exception);
-    }
-
-    HttpRequest request =
-        baseRequestBuilder(resolve(FILES_ENDPOINT))
-            .header("Content-Type", multipartBodyPublisher.getContentType())
-            .POST(multipartBodyPublisher.build())
-            .build();
-    String responseBody = sendRequest(request);
-
-    String fileId = extractOptionalStringField(responseBody, "id");
-    if (fileId == null || fileId.isBlank()) {
-      throw new OpenAIApiClientException("OpenAI API upload response did not contain a file id");
-    }
-    return fileId;
-  }
-
-  public void deleteFile(String fileId) throws OpenAIApiClientException {
-    requireString(fileId, "No file id provided");
-
-    HttpRequest request =
-        baseRequestBuilder(resolve(FILES_ENDPOINT + "/" + encode(fileId))).DELETE().build();
-    sendRequest(request);
-  }
-
   public String startTranscription(
-      String fileId,
+      Path filePath,
+      String fileBaseName,
       String modelIdentifier,
       SpeechToTextEngineOutputFormat outputFormat,
       Locale locale)
       throws OpenAIApiClientException {
-    requireString(fileId, "No file id provided");
+    Objects.requireNonNull(filePath, "No file path provided");
+    requireString(fileBaseName, "No file name provided");
     requireString(modelIdentifier, "No model identifier provided");
     Objects.requireNonNull(outputFormat, "No output format provided");
 
-    String requestBody = createTranscriptionRequestBody(fileId, modelIdentifier, outputFormat, locale);
+    MultipartFormDataBodyPublisher multipartBodyPublisher = new MultipartFormDataBodyPublisher();
+    try {
+      // The transcription endpoint validates the filename extension against its list of
+      // supported audio formats, but decodes the actual format from the file content. Since
+      // the stored audio carries no original extension, we derive one from the magic bytes.
+      String fileName = fileBaseName + "." + detectAudioExtension(filePath);
+      multipartBodyPublisher.addFilePart(
+          "file", fileName, "application/octet-stream", filePath);
+      multipartBodyPublisher.addTextPart("model", modelIdentifier);
+      multipartBodyPublisher.addTextPart("response_format", mapOutputFormat(outputFormat));
+      if (locale != null) {
+        multipartBodyPublisher.addTextPart("language", locale.getLanguage());
+      }
+    } catch (IOException exception) {
+      throw new OpenAIApiClientException("Failed to read audio file for transcription", exception);
+    }
 
     HttpRequest request =
         baseRequestBuilder(resolve(TRANSCRIPTIONS_ENDPOINT))
-            .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+            .header("Content-Type", multipartBodyPublisher.getContentType())
+            .POST(multipartBodyPublisher.build())
             .build();
     String responseBody = sendRequest(request);
 
@@ -228,21 +211,6 @@ public class OpenAIApiClient {
     return responseBody;
   }
 
-  private static String createTranscriptionRequestBody(
-      String fileId,
-      String modelIdentifier,
-      SpeechToTextEngineOutputFormat outputFormat,
-      Locale locale) {
-    JsonObject requestBody = new JsonObject();
-    requestBody.addProperty("file", fileId);
-    requestBody.addProperty("model", modelIdentifier);
-    requestBody.addProperty("response_format", mapOutputFormat(outputFormat));
-    if (locale != null) {
-      requestBody.addProperty("language", locale.getLanguage());
-    }
-    return GSON.toJson(requestBody);
-  }
-
   private static String extractJsonArrayByFieldName(String json, String fieldName) {
     int fieldIndex = json.indexOf("\"" + fieldName + "\"");
     if (fieldIndex < 0) {
@@ -304,6 +272,68 @@ public class OpenAIApiClient {
     return matcher.group(1).replace("\\\"", "\"").replace("\\\\", "\\");
   }
 
+  /**
+   * Derives a supported audio file extension from the leading magic bytes of the file. Falls back
+   * to {@code mp3} when the format is not recognized; the API decodes the real format from the file
+   * content regardless, so a whitelisted extension is sufficient to pass its validation.
+   */
+  private static String detectAudioExtension(Path filePath) throws IOException {
+    byte[] header = readHeader(filePath);
+
+    if (startsWith(header, "RIFF") && regionEquals(header, 8, "WAVE")) {
+      return "wav";
+    }
+    if (startsWith(header, "fLaC")) {
+      return "flac";
+    }
+    if (startsWith(header, "OggS")) {
+      return "ogg";
+    }
+    if (startsWith(header, "ID3")
+        || (header.length >= 2 && (header[0] & 0xFF) == 0xFF && (header[1] & 0xE0) == 0xE0)) {
+      return "mp3";
+    }
+    if (regionEquals(header, 4, "ftyp")) {
+      return startsWith(header, 8, "M4A") ? "m4a" : "mp4";
+    }
+    if (header.length >= 4
+        && (header[0] & 0xFF) == 0x1A
+        && (header[1] & 0xFF) == 0x45
+        && (header[2] & 0xFF) == 0xDF
+        && (header[3] & 0xFF) == 0xA3) {
+      return "webm";
+    }
+    return "mp3";
+  }
+
+  private static byte[] readHeader(Path filePath) throws IOException {
+    try (InputStream inputStream = Files.newInputStream(filePath)) {
+      byte[] buffer = new byte[16];
+      int read = inputStream.readNBytes(buffer, 0, buffer.length);
+      return read == buffer.length ? buffer : Arrays.copyOf(buffer, read);
+    }
+  }
+
+  private static boolean startsWith(byte[] data, String asciiMarker) {
+    return regionEquals(data, 0, asciiMarker);
+  }
+
+  private static boolean startsWith(byte[] data, int offset, String asciiMarker) {
+    return regionEquals(data, offset, asciiMarker);
+  }
+
+  private static boolean regionEquals(byte[] data, int offset, String asciiMarker) {
+    if (data.length < offset + asciiMarker.length()) {
+      return false;
+    }
+    for (int index = 0; index < asciiMarker.length(); index++) {
+      if ((data[offset + index] & 0xFF) != asciiMarker.charAt(index)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   private static String requireToken(String apiToken) {
     return requireString(apiToken, "No API token provided");
   }
@@ -313,10 +343,6 @@ public class OpenAIApiClient {
       throw new IllegalArgumentException(message);
     }
     return value;
-  }
-
-  private static String encode(String value) {
-    return URLEncoder.encode(value, StandardCharsets.UTF_8);
   }
 
   private static final class MultipartFormDataBodyPublisher {
