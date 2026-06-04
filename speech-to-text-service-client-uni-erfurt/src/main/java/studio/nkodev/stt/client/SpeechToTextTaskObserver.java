@@ -12,6 +12,8 @@ import studio.nkodev.stt.client.adapter.SpeechToTextServiceAdapter;
 import studio.nkodev.stt.client.api.SpeechToTextTaskState;
 import studio.nkodev.stt.client.api.SpeechToTextTaskStateConsumer;
 import studio.nkodev.stt.client.config.SpeechToTextServiceClientConfiguration;
+import studio.nkodev.stt.client.exception.SpeechToTextServiceClientErrorType;
+import studio.nkodev.stt.client.exception.SpeechToTextServiceClientException;
 
 /**
  * Handles polling-based observation of speech-to-text task state changes.
@@ -101,6 +103,19 @@ final class SpeechToTextTaskObserver implements AutoCloseable {
     } catch (Exception exception) {
       if (closed || !taskObservation.isActive()) {
         return;
+      }
+
+      if (exception instanceof SpeechToTextServiceClientException clientException) {
+        SpeechToTextServiceClientErrorType errorType = clientException.getErrorType();
+        boolean terminal = errorType == SpeechToTextServiceClientErrorType.NOT_FOUND;
+        taskObservation
+            .getTaskStateConsumer()
+            .onObservationError(taskObservation.getTaskId(), errorType, terminal);
+        if (terminal) {
+          taskObservation.stop();
+          taskObservations.remove(taskObservation.getTaskId());
+          return;
+        }
       }
 
       logger.warn("Failed to observe task {}", taskObservation.getTaskId(), exception);
