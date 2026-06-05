@@ -98,8 +98,8 @@ public class DbAccess {
 
   private static void executeSchemaVersion2UpdateScript(DataSource dataSource) throws SQLException {
     try (Connection connection = dataSource.getConnection()) {
+      connection.setAutoCommit(false);
       try (Statement statement = connection.createStatement()) {
-        statement.execute("PRAGMA user_version = 2");
         statement.execute("""
                       CREATE TABLE IF NOT EXISTS speech_to_text_task_new
                       (
@@ -112,14 +112,19 @@ public class DbAccess {
                           created_at       INT NOT NULL DEFAULT (unixepoch()),
                           changed_at       INT NULL
                       );
-                      
+                      """);
+        statement.execute("""
                       INSERT INTO speech_to_text_task_new (id, state, engine_type, model_identifier, output_format, locale, created_at, changed_at)
                       SELECT id, state, engine_type, model_identifier, output_format, locale, created_at, changed_at from speech_to_text_task;
-                      
-                      DROP TABLE speech_to_text_task;
-                      ALTER TABLE speech_to_text_task_new RENAME TO speech_to_text_task;
                       """);
-
+        statement.execute("DROP TABLE speech_to_text_task;");
+        statement.execute("ALTER TABLE speech_to_text_task_new RENAME TO speech_to_text_task;");
+        connection.commit();
+        // Set the version only after the migration succeeded and was committed.
+        statement.execute("PRAGMA user_version = 2");
+      } catch (SQLException e) {
+        connection.rollback();
+        throw e;
       }
     }
   }
