@@ -2,7 +2,7 @@ package studio.nkodev.stt.db;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import java.io.IOException;
+
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -51,7 +51,11 @@ public class DbAccess {
     int userVersion = readUserVersion(dataSource);
     if (userVersion == 0) {
       logger.info("Found empty database file. Initialize schema");
-      executeSchemaVersion1Script(dataSource);
+      executeSchemaInitialization(dataSource);
+    }
+    if(userVersion == 1) {
+      logger.info("Found db version 1. Update to version 2");
+      executeSchemaVersion2UpdateScript(dataSource);
     }
   }
 
@@ -69,16 +73,16 @@ public class DbAccess {
     }
   }
 
-  private static void executeSchemaVersion1Script(DataSource dataSource) throws SQLException {
+  private static void executeSchemaInitialization(DataSource dataSource) throws SQLException {
     try (Connection connection = dataSource.getConnection()) {
       try (Statement statement = connection.createStatement()) {
-        statement.execute("PRAGMA user_version = 1");
+        statement.execute("PRAGMA user_version = 2");
         statement.execute("PRAGMA foreign_keys = ON;");
         statement.execute(
             """
                     CREATE TABLE IF NOT EXISTS speech_to_text_task
                     (
-                        id               INTEGER PRIMARY KEY,
+                        id               INTEGER PRIMARY KEY AUTOINCREMENT,
                         state            TEXT NOT NULL,
                         engine_type      TEXT NOT NULL,
                         model_identifier TEXT NOT NULL,
@@ -88,6 +92,34 @@ public class DbAccess {
                         changed_at       INT NULL
                     );
                     """);
+      }
+    }
+  }
+
+  private static void executeSchemaVersion2UpdateScript(DataSource dataSource) throws SQLException {
+    try (Connection connection = dataSource.getConnection()) {
+      try (Statement statement = connection.createStatement()) {
+        statement.execute("PRAGMA user_version = 2");
+        statement.execute("""
+                      CREATE TABLE IF NOT EXISTS speech_to_text_task_new
+                      (
+                          id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                          state            TEXT NOT NULL,
+                          engine_type      TEXT NOT NULL,
+                          model_identifier TEXT NOT NULL,
+                          output_format    TEXT NOT NULL,
+                          locale           TEXT NULL,
+                          created_at       INT NOT NULL DEFAULT (unixepoch()),
+                          changed_at       INT NULL
+                      );
+                      
+                      INSERT INTO speech_to_text_task_new (id, state, engine_type, model_identifier, output_format, locale, created_at, changed_at)
+                      SELECT id, state, engine_type, model_identifier, output_format, locale, created_at, changed_at from speech_to_text_task;
+                      
+                      DROP TABLE speech_to_text_task;
+                      ALTER TABLE speech_to_text_task_new RENAME TO speech_to_text_task;
+                      """);
+
       }
     }
   }

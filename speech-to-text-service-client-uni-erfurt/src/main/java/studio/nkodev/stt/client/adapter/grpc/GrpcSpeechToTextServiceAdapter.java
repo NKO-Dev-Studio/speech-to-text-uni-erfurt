@@ -49,7 +49,6 @@ public class GrpcSpeechToTextServiceAdapter implements SpeechToTextServiceAdapte
   private static final Logger logger =
       LoggerFactory.getLogger(GrpcSpeechToTextServiceAdapter.class);
   private static final long STREAM_COMPLETION_TIMEOUT_SECONDS = 30L;
-  private static final long STREAM_READY_POLL_INTERVAL_MS = 10L;
 
   private final SpeechToTextServiceClientConfiguration configuration;
   private final ManagedChannel channel;
