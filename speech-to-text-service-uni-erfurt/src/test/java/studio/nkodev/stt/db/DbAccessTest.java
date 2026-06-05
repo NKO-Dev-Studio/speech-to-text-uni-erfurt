@@ -52,11 +52,12 @@ public class DbAccessTest {
     DbAccess dbAccess = new DbAccess(config);
     try (Connection connection = dbAccess.getConnection()) {
       int userVersion = readUserVersion(connection);
-      assertEquals(1, userVersion);
+      assertEquals(2, userVersion);
 
       Set<String> tableNames = readTableNames(connection);
-      assertEquals(1, tableNames.size());
+      assertEquals(2, tableNames.size());
       assertTrue(tableNames.contains("speech_to_text_task"));
+      assertTrue(tableNames.contains("sqlite_sequence"));
     }
   }
 
